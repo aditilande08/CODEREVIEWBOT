@@ -176,18 +176,40 @@ Files Changed ({len(files_data)} total, analyzing {len(files_to_analyze)} files)
         api_key=api_key,
     )
     
+    FREE_MODELS = [
+        "mistralai/mistral-7b-instruct:free",
+        "google/gemma-3-4b-it:free",
+        "meta-llama/llama-3.2-3b-instruct:free",
+        "qwen/qwen3-next-80b-a3b-instruct:free",
+    ]
+
+    last_error = None
+    completion = None
+
+    for model in FREE_MODELS:
+        try:
+            logger.info(f"Trying model: {model}")
+            completion = await client.chat.completions.create(
+                model=model,
+                max_tokens=4096,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": f"Please review this pull request comprehensively:\n\n{code_context}"}
+                ]
+            )
+            if completion.choices[0].message.content:
+                logger.info(f"Success with model: {model}")
+                break
+        except Exception as e:
+            logger.warning(f"Model {model} failed: {str(e)}")
+            last_error = e
+            continue
+
+    if not completion or not completion.choices[0].message.content:
+        raise last_error or Exception("All models failed")
+
     try:
-        completion = await client.chat.completions.create(
-            model="qwen/qwen3-next-80b-a3b-instruct:free",
-            max_tokens=4096,
-            messages=[
-                {"role": "system", "content": system_message},
-                {
-                    "role": "user",
-                    "content": f"Please review this pull request comprehensively:\n\n{code_context}"
-                }
-            ]
-        )
+        response = completion.choices[0].message.content
         
         response = completion.choices[0].message.content
         
@@ -383,4 +405,4 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-)
+
