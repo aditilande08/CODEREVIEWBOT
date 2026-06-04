@@ -177,9 +177,9 @@ Files Changed ({len(files_data)} total, analyzing {len(files_to_analyze)} files)
     )
     
     GROQ_MODELS = [
-        "llama3-8b-8192",
-        "llama3-70b-8192",
-        "mixtral-8x7b-32768",
+        "llama-3.1-8b-instant",
+        "llama-3.3-70b-versatile",
+        "gemma2-9b-it",
     ]
 
     last_error = None
