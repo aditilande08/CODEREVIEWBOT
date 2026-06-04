@@ -116,11 +116,11 @@ async def fetch_pr_data(owner: str, repo: str, pr_number: int):
         
         return pr_data, files_data
 
-# Generate code review using OpenRouter (Qwen free model)
+# Generate code review using Groq (fast free models)
 async def generate_code_review(pr_data: dict, files_data: list) -> dict:
-    api_key = os.environ.get('OPENROUTER_API_KEY')
+    api_key = os.environ.get('GROQ_API_KEY')
     if not api_key:
-        raise HTTPException(status_code=500, detail="OPENROUTER_API_KEY not configured")
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
     
     # Limit files to avoid token limits
     max_files = 10
@@ -170,23 +170,22 @@ Files Changed ({len(files_data)} total, analyzing {len(files_to_analyze)} files)
         
         Provide a comprehensive review with at least 3-5 findings per PR if issues exist."""
 
-    # Create OpenRouter client (OpenAI-compatible API)
+    # Create Groq client (OpenAI-compatible API)
     client = AsyncOpenAI(
-        base_url="https://openrouter.ai/api/v1",
+        base_url="https://api.groq.com/openai/v1",
         api_key=api_key,
     )
     
-    FREE_MODELS = [
-        "mistralai/mistral-7b-instruct:free",
-        "google/gemma-3-4b-it:free",
-        "meta-llama/llama-3.2-3b-instruct:free",
-        "qwen/qwen3-next-80b-a3b-instruct:free",
+    GROQ_MODELS = [
+        "llama3-8b-8192",
+        "llama3-70b-8192",
+        "mixtral-8x7b-32768",
     ]
 
     last_error = None
     completion = None
 
-    for model in FREE_MODELS:
+    for model in GROQ_MODELS:
         try:
             logger.info(f"Trying model: {model}")
             completion = await client.chat.completions.create(
@@ -211,16 +210,14 @@ Files Changed ({len(files_data)} total, analyzing {len(files_to_analyze)} files)
     try:
         response = completion.choices[0].message.content
         
-        response = completion.choices[0].message.content
-        
-        # Handle empty/None responses from free models
+        # Handle empty/None responses
         if not response:
             return {
                 "findings": [{
                     "severity": "WARNING",
                     "problem": "AI model returned an empty response",
-                    "fix": "This is likely due to rate limiting on the free model. Please wait 30 seconds and try again.",
-                    "why": "Free AI models have usage limits. If this persists, try a smaller PR or wait a few minutes.",
+                    "fix": "Please wait 30 seconds and try again.",
+                    "why": "Free AI models have usage limits.",
                     "file_path": None,
                     "line_number": None
                 }],
@@ -405,4 +402,3 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
